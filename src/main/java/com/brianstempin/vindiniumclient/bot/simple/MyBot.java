@@ -1,20 +1,27 @@
 package com.brianstempin.vindiniumclient.bot.simple;
 
-import com.brianstempin.vindiniumclient.bot.BotMove;
-import com.brianstempin.vindiniumclient.bot.BotUtils;
-import com.brianstempin.vindiniumclient.dto.GameState;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.logging.Logger;
 
-/**
- * Created by bstempi on 9/22/14.
- */
-public class MurderBot implements SimpleBot {
+import com.brianstempin.vindiniumclient.bot.BotMove;
+import com.brianstempin.vindiniumclient.bot.BotUtils;
+import com.brianstempin.vindiniumclient.bot.advanced.AdvancedBot;
+import com.brianstempin.vindiniumclient.bot.advanced.AdvancedGameState;
+import com.brianstempin.vindiniumclient.dto.GameState;
 
-    private Logger logger;
+public class MyBot implements SimpleBot{
 
-    public MurderBot() {
+	private Logger logger;
+
+    public MyBot() {
         logger = Logger.getLogger("murderbot");
     }
 
@@ -108,59 +115,75 @@ public class MurderBot implements SimpleBot {
         Collections.reverse(path);
         return path;
     }
-
     private boolean runAwayMode = false;
-
-    @Override
-    public BotMove move(GameState gameState) {
-        logger.info("Starting move");
+	
+	@Override
+	public BotMove move(GameState gameState) {
+		// TODO Auto-generated method stublogger.info("Starting move");
 
         // Step zero:  Do some path-finding
+		HashMap<Vertex,Double> mineset = new HashMap<>();
+		HashMap<Vertex,Double> playerset = new HashMap<>();
+		HashMap<Vertex,Double> pubset = new HashMap<>();
+		
         List<Vertex> vertexes = doDijkstra(gameState.getGame().getBoard(), gameState.getHero());
        int temp =  gameState.getHero().getId();
        String s = Integer.toString(temp);
        System.out.println(s);
-        Vertex closestPub = null;
-        Vertex closestPlayer = null;
-        Vertex closestMine = null;
-
+        Vertex pub = null;
+        Vertex player = null;
+        Vertex mine = null;
+        Double mineD = 100.0;
+        Double pubD = 100.0;
+        Double playerD = 100.0;
         for (Vertex v : vertexes) {
-        	if (v.getTileType().startsWith("$")  && v.getMinDistance() != 0 && v.getMinDistance() != Double
-                    .POSITIVE_INFINITY && (closestMine == null || closestMine
-                    .getMinDistance() > v.getMinDistance()))
+        	if (v.getTileType().startsWith("$") && v.getMinDistance() != 0 && v.getMinDistance() != Double
+                    .POSITIVE_INFINITY)
         	{
         		if(!v.getTileType().endsWith(s))
         		{
-        		closestMine = v;
+        			if(v.getMinDistance()<mineD)
+        			{
+        		mine = v;
+        		mineD = v.getMinDistance();
+        			}
         		}
         	}
         		
                 
             if (v.getTileType().startsWith("@") && v.getMinDistance() != 0 && v.getMinDistance() != Double
-                    .POSITIVE_INFINITY && (closestPlayer == null || closestPlayer
-                    .getMinDistance() > v.getMinDistance()))
-                closestPlayer = v;
-            else if (v.getTileType().equals("[]") && v.getMinDistance() != Double.POSITIVE_INFINITY && (closestPub ==
-                    null || closestPub.getMinDistance() > v
-                    .getMinDistance()))
-                closestPub = v;
+                    .POSITIVE_INFINITY)
+            {
+            	if(v.getMinDistance()<playerD)
+    			{
+                player = v;
+                playerD = v.getMinDistance();
+    			}
+            }
+            else if (v.getTileType().equals("[]") && v.getMinDistance() != Double.POSITIVE_INFINITY)
+            	if(v.getMinDistance()<pubD)
+    			{
+                 pub = v;
+                 pubD = v.getMinDistance();
+    			}
         }
 
 
         // Step one:  Do I need HP?
         
         
+
         
         if (gameState.getHero().getGold() >= 2 && gameState.getHero().getLife() <= 40) {
             runAwayMode = true;
-            Vertex move = getPath(closestPub).get(0);
+            Vertex move = getPath(pub).get(0);
             
             logger.info("Getting beer");
             return BotUtils.directionTowards(gameState.getHero().getPos(), move.getPosition());
         }
 
         if (runAwayMode == true && gameState.getHero().getGold() >= 2 && gameState.getHero().getLife() <= 80) {
-            Vertex move = getPath(closestPub).get(0);
+            Vertex move = getPath(pub).get(0);
             logger.info("Getting beer");
             return BotUtils.directionTowards(gameState.getHero().getPos(), move.getPosition());
         } else {
@@ -168,33 +191,47 @@ public class MurderBot implements SimpleBot {
         }
 
         // Step two:  Shank someone.
-       if(closestMine.getMinDistance() < closestPlayer.getMinDistance())
+       if(mine.getMinDistance() < player.getMinDistance())
        {
     	   
-    	   Vertex move = getPath(closestMine).get(0);
+    	   Vertex move = getPath(mine).get(0);
     	   logger.info("Going after mine");
            return BotUtils.directionTowards(gameState.getHero().getPos(), move.getPosition());
        }
        else
        {
-        Vertex move = getPath(closestPlayer).get(0);
+        Vertex move = getPath(player).get(0);
         logger.info("Going after player");
         return BotUtils.directionTowards(gameState.getHero().getPos(), move.getPosition());
        }
 
+		
+	}
+	public Object[] getasc(HashMap<Vertex, Double> map)
+    {
+    Object[] a = map.entrySet().toArray();
+    Arrays.sort(a, new Comparator() {
+        public int compare(Object o1, Object o2) {
+            return ((Map.Entry<String, Integer>) o2).getValue().compareTo(
+                    ((Map.Entry<String, Integer>) o1).getValue());
+        }
+    });
+     return a;
     }
 
-    @Override
-    public void setup() {
-        // No-op
-    }
+	@Override
+	public void setup() {
+		// TODO Auto-generated method stub
+		
+	}
 
-    @Override
-    public void shutdown() {
-        // No-op
-    }
-
-    private static class Vertex implements Comparable<Vertex> {
+	@Override
+	public void shutdown() {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	private static class Vertex implements Comparable<Vertex> {
         private String tileType;
         private List<Vertex> adjacencies;
         private double minDistance;
@@ -253,4 +290,7 @@ public class MurderBot implements SimpleBot {
             return Double.compare(getMinDistance(), o.getMinDistance());
         }
     }
+	
+	
+
 }
